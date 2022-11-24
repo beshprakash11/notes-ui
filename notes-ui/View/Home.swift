@@ -10,13 +10,25 @@ import SwiftUI
 struct Home: View {
     @State var notes = [Note]()
     @State var showAdd = false
+    
+    @State var showAlert = false
+    @State var deleteItem: Note?
+    
+    var alert: Alert{
+        Alert(title: Text("Delete"), message: Text("Are you sure you want to delete this note"), primaryButton: .destructive(Text("Delete"), action: deleteNode), secondaryButton: .cancel())
+    }
     var body: some View {
         NavigationView{
             List(self.notes){ note in
                 Text("\(note.note)")
                     .padding(0)
+                    .onLongPressGesture {
+                        self.showAlert.toggle()
+                        deleteItem = note
+                    }
             }//: List
-            .sheet(isPresented: $showAdd, content: {
+            .alert(isPresented: $showAlert, content: { alert })
+            .sheet(isPresented: $showAdd, onDismiss: fetchNotes ,content: {
                 AddNoteView()
             })
             .onAppear(perform: { fetchNotes()})
@@ -57,5 +69,31 @@ extension Home{
             
         }
         task.resume()
+    }
+    
+    func deleteNode(){
+        guard let id = deleteItem?._id else { return }
+        let url = URL(string: "http://85.214.238.109:3000/notes/\(id)")!
+        
+        var request = URLRequest(url: url)
+        
+        request.httpMethod = "DELETE"
+        
+        let task = URLSession.shared.dataTask(with: request) { data, res, err in
+            guard err == nil else { return }
+            guard let data = data else { return }
+            
+            do{
+                if let json = try JSONSerialization.jsonObject(with: data, options: .mutableContainers) as? [String: Any]{
+                    
+                    debugPrint(json)
+                }
+            }catch{
+                debugPrint(err ?? "Notes can not be delete")
+            }
+        }
+        task.resume()
+        
+        fetchNotes()
     }
 }
