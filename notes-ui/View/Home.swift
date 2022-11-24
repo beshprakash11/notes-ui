@@ -11,8 +11,13 @@ struct Home: View {
     @State var notes = [Note]()
     @State var showAdd = false
     
+    
     @State var showAlert = false
     @State var deleteItem: Note?
+    @State var updateNote = ""
+    @State var updateNoteId = ""
+    
+    @State var isEditMode: EditMode = .inactive
     
     var alert: Alert{
         Alert(title: Text("Delete"), message: Text("Are you sure you want to delete this note"), primaryButton: .destructive(Text("Delete"), action: deleteNode), secondaryButton: .cancel())
@@ -20,20 +25,51 @@ struct Home: View {
     var body: some View {
         NavigationView{
             List(self.notes){ note in
-                Text("\(note.note)")
-                    .padding(0)
-                    .onLongPressGesture {
-                        self.showAlert.toggle()
-                        deleteItem = note
+                if(self.isEditMode == .inactive){
+                    Text("\(note.note)")
+                        .padding(0)
+                        .onLongPressGesture {
+                            self.showAlert.toggle()
+                            deleteItem = note
+                        }
+                }else{
+                    HStack{
+                        Image(systemName: "pencil.circle.fill")
+                            .foregroundColor(.yellow)
+                        Text(note.note)
+                            .padding()
+                    }//:Hstack
+                    .onTapGesture {
+                        self.updateNote = note.note
+                        self.updateNoteId = note._id
+                        self.showAdd.toggle()
                     }
+                }
             }//: List
             .alert(isPresented: $showAlert, content: { alert })
             .sheet(isPresented: $showAdd, onDismiss: fetchNotes ,content: {
-                AddNoteView()
+                if (self.isEditMode == .inactive){
+                    AddNoteView()
+                }else{
+                    UpdateNoteView(text: $updateNote, noteId: $updateNoteId)
+                }
             })
             .onAppear(perform: { fetchNotes()})
             .navigationTitle("Notes")
             .navigationBarItems(
+                leading: Button(action: {
+                    if (self.isEditMode == .inactive){
+                        self.isEditMode = .active
+                    }else{
+                        self.isEditMode = .inactive
+                    }
+                                    }, label: {
+                    if (self.isEditMode == .inactive){
+                        Text("Edit")
+                    }else{
+                        Text("Done")
+                    }
+                }),
                 trailing: Button(action: {
                     showAdd.toggle()
                 }, label: {
@@ -69,6 +105,10 @@ extension Home{
             
         }
         task.resume()
+        
+        if (self.isEditMode == .active){
+            self.isEditMode = .inactive
+        }
     }
     
     func deleteNode(){
